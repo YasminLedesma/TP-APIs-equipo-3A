@@ -4,6 +4,8 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Web.Http;
+using Dominio;
+using Negocio
 
 namespace Api_Web.Models
 {
@@ -16,9 +18,29 @@ namespace Api_Web.Models
         }
 
         // GET: api/Articulo/5
-        public string Get(int id)
+        public HttpResponseMessage Get(int id)
         {
-            return "value";
+            try
+            {
+                ArticuloNegocio negocio = new ArticuloNegocio();
+                List<Articulo> lista = new List<Articulo>();
+
+                lista = negocio.Listar();
+
+                Articulo encontrado = lista.Find(x => x.Id == id);
+
+                if (encontrado == null)
+                {
+                    return Request.CreateResponse(HttpStatusCode.NotFound, "El artículo no existe");
+                }
+
+                return Request.CreateResponse(HttpStatusCode.OK, encontrado);
+            }
+            catch (Exception)
+            {
+                return Request.CreateResponse(HttpStatusCode.BadRequest, "Error al procesar la informacion");
+
+            }
         }
 
         // POST: api/Articulo
@@ -32,8 +54,20 @@ namespace Api_Web.Models
         }
 
         // DELETE: api/Articulo/5
-        public void Delete(int id)
+        public HttpResponseMessage Delete(int id)
         {
+            ArticuloNegocio negocio = new ArticuloNegocio();
+            try
+            {
+                negocio.eliminarArticulo(id);
+
+                return Request.CreateResponse(HttpStatusCode.OK, "Articulo eliminado correctamente.");
+            }
+            catch (Exception)
+            {
+
+                return Request.CreateResponse(HttpStatusCode.BadRequest, "El id no existe.");
+            }
         }
     }
 }
