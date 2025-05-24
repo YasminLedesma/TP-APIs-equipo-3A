@@ -1,20 +1,33 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Web.Http;
+using System.Web.Mvc;
 using Dominio;
-using Negocio
+using Negocio;
 
 namespace Api_Web.Models
 {
     public class ArticuloController : ApiController
     {
         // GET: api/Articulo
-        public IEnumerable<string> Get()
+        public HttpResponseMessage Get()
         {
-            return new string[] { "value1", "value2" };
+            List<Articulo> lista = new List<Articulo>();
+            try
+            {
+                ArticuloNegocio negocio = new ArticuloNegocio();
+                lista = negocio.Listar();
+
+                return Request.CreateResponse(HttpStatusCode.OK, lista);
+            }
+            catch (Exception)
+            {
+                return Request.CreateResponse(HttpStatusCode.InternalServerError, "Ocurrió un error inesperado.");
+            }
         }
 
         // GET: api/Articulo/5
