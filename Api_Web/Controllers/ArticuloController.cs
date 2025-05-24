@@ -176,6 +176,14 @@ namespace Api_Web.Models
         public HttpResponseMessage Delete(int id)
         {
             ArticuloNegocio negocio = new ArticuloNegocio();
+
+            Articulo articulo = negocio.Listar().Find(x => x.Id == id);
+
+            if(articulo == null)
+            {
+                return Request.CreateResponse(HttpStatusCode.NotFound, "El artículo no existe");
+            }
+
             try
             {
                 negocio.eliminarArticulo(id);
