@@ -4,6 +4,7 @@ using System.Data;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text.RegularExpressions;
 using System.Web.Http;
 using System.Web.Mvc;
 using Dominio;
@@ -60,88 +61,153 @@ namespace Api_Web.Models
         // POST: api/Articulo
         public HttpResponseMessage Post([FromBody] ArticuloDto articulo)
         {
-            ArticuloNegocio negocio = new ArticuloNegocio();
-            MarcaNegocio marcaNegocio = new MarcaNegocio();
-            CategoriaNegocio categoriaNegocio = new CategoriaNegocio();
-
-            Marca marca = marcaNegocio.Listar().Find(x => x.Id == articulo.Marca);
-            Categoria categoria = categoriaNegocio.Listar().Find(x => x.Id == articulo.Categoria);
-
-            if (marca == null && categoria == null)
+            try
             {
-                return Request.CreateResponse(HttpStatusCode.BadRequest, "Marca y Categoria inexistentes.");
+                ArticuloNegocio negocio = new ArticuloNegocio();
+                MarcaNegocio marcaNegocio = new MarcaNegocio();
+                CategoriaNegocio categoriaNegocio = new CategoriaNegocio();
+
+                if (articulo == null)
+                {
+                    return Request.CreateResponse(HttpStatusCode.BadRequest, "No se recibio articulo");
+                }
+
+                string camposVacios = "";
+                if (string.IsNullOrWhiteSpace(articulo.Codigo))
+                    camposVacios += "| Codigo: No puede estar vacio. |";
+
+                if (string.IsNullOrWhiteSpace(articulo.Nombre))
+                    camposVacios += "| Nombre: No puede estar vacio. |";
+
+                if (string.IsNullOrWhiteSpace(articulo.Descripcion))
+                    camposVacios += "| Descripcion: No puede estar vacio. |";
+
+                Marca marca = marcaNegocio.Listar().Find(x => x.Id == articulo.Marca);
+                Categoria categoria = categoriaNegocio.Listar().Find(x => x.Id == articulo.Categoria);
+
+                if (marca == null)
+                {
+                    camposVacios += "| Marca: Marca inexistente. |";
+                }
+                if (categoria == null)
+                {
+                    camposVacios += "| Categoria: Categoria inexistente. |";
+                }
+
+                if(articulo.Precio <= 0)
+                {
+                    camposVacios += "| Precio invalido: debe ser un valor mayor a 0. |";
+                }
+
+                if (camposVacios.Length > 0) 
+                {
+                    return Request.CreateResponse(HttpStatusCode.BadRequest, camposVacios);
+                }
+
+                Articulo nuevo = new Articulo();
+                nuevo.Codigo = articulo.Codigo;
+                nuevo.Nombre = articulo.Nombre;
+                nuevo.Descripcion = articulo.Descripcion;
+                nuevo.Marca = new Marca { Id = articulo.Marca };
+                nuevo.Categoria = new Categoria { Id = articulo.Categoria };
+                nuevo.Precio = articulo.Precio;
+
+                negocio.AgregarArticulo(nuevo);
+
+                return Request.CreateResponse(HttpStatusCode.OK, "Articulo agregado correctamente.");
             }
-            else if (marca == null)
+            catch (Exception)
             {
-                return Request.CreateResponse(HttpStatusCode.BadRequest, "Marca inexistente.");
+                return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, "Ocurrio un error al agregar el articulo.");
             }
-            else if (categoria == null)
-            {
-                return Request.CreateResponse(HttpStatusCode.BadRequest, "Categoria inexistente.");
-            }
-
-            Articulo nuevo = new Articulo();
-            nuevo.Codigo = articulo.Codigo;
-            nuevo.Nombre = articulo.Nombre;
-            nuevo.Descripcion = articulo.Descripcion;
-            nuevo.Marca = new Marca { Id = articulo.Marca };
-            nuevo.Categoria = new Categoria { Id = articulo.Categoria };
-            nuevo.Precio = articulo.Precio;
-
-            negocio.AgregarArticulo(nuevo);
-
-            return Request.CreateResponse(HttpStatusCode.OK, "Articulo agregado correctamente.");
         }
 
-        // AGREGAR IMAGENES
+        // AGREGAR IMÁGENES
         // POST: api/Articulo/id
         public HttpResponseMessage Post(int id, [FromBody] List<string> imagenes)
         {
-
-            ArticuloNegocio negocio = new ArticuloNegocio();
-            List<Articulo> lista = negocio.Listar();
-
-            Articulo encontrado = lista.Find(x => x.Id == id);
-
-            if (encontrado == null)
+            try
             {
-                return Request.CreateResponse(HttpStatusCode.NotFound, "El artículo no existe");
-            }
+                ArticuloNegocio negocio = new ArticuloNegocio();
+                List<Articulo> lista = negocio.Listar();
 
-            if (imagenes == null || imagenes.Count == 0)
+                Articulo encontrado = lista.Find(x => x.Id == id);
+
+                if (encontrado == null)
+                {
+                    return Request.CreateResponse(HttpStatusCode.NotFound, "El articulo no existe.");
+                }
+
+                if (imagenes == null || imagenes.Count == 0)
+                {
+                    return Request.CreateResponse(HttpStatusCode.BadRequest, "No se recibieron imagenes.");
+                }
+
+                // Validacion de URLs
+                string patronUrl = @"^(https?:\/\/)[\w\-]+(\.[\w\-]+)+[/#?]?.*$";
+                foreach (string url in imagenes)
+                {
+                    // Si alguna esta vacia
+                    if (string.IsNullOrWhiteSpace(url))
+                    {
+                        return Request.CreateResponse(HttpStatusCode.BadRequest, "Una o mas URLs estan vacias.");
+                    }
+
+                    // Si difiera del patron
+                    if (!Regex.IsMatch(url, patronUrl))
+                    {
+                        return Request.CreateResponse(HttpStatusCode.BadRequest, "Una o mas URLs no son validas: " + url);
+                    }
+                }
+
+                negocio.AgregarImagenes(id, imagenes);
+
+                return Request.CreateResponse(HttpStatusCode.OK, "Imagenes agregadas correctamente al articulo.");
+            }
+            catch (Exception)
             {
-                return Request.CreateResponse(HttpStatusCode.BadRequest, "No se recibieron Imagenes ");
+                return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, "Ocurrio un error al agregar las imagenes.");
             }
-
-            negocio.AgregarImagenes(id, imagenes);
-
-            return Request.CreateResponse(HttpStatusCode.OK, "Imagenes agregadas correctamente al articulo.");
         }
 
-        // MODIFICAR ARTICULO
+
+        // MODIFICAR ARTÍCULO
         // PUT: api/Articulo/5
         public HttpResponseMessage Put(int id, [FromBody] ArticuloDto articulo)
         {
-
-
-            ArticuloNegocio negocio = new ArticuloNegocio();
-            MarcaNegocio marcaNegocio = new MarcaNegocio();
-            CategoriaNegocio categoriaNegocio = new CategoriaNegocio();
-
-            List<Articulo> lista = negocio.Listar();
-            Articulo nuevo = lista.Find(x => x.Id == id);
-
-            if (nuevo == null)
+            try
             {
-                return Request.CreateResponse(HttpStatusCode.NotFound, "El artículo no existe");
-            }
+                if (articulo == null)
+                {
+                    return Request.CreateResponse(HttpStatusCode.BadRequest, "No se recibieron las modificaciones a realizar.");
+                }
 
-            Marca marca = marcaNegocio.Listar().Find(x => x.Id == articulo.Marca);
-            Categoria categoria = categoriaNegocio.Listar().Find(x => x.Id == articulo.Categoria);
+                ArticuloNegocio negocio = new ArticuloNegocio();
+                MarcaNegocio marcaNegocio = new MarcaNegocio();
+                CategoriaNegocio categoriaNegocio = new CategoriaNegocio();
 
-            if (articulo != null)
-            {
-                if (marca == null && categoria == null)
+                List<Articulo> lista = negocio.Listar();
+                Articulo nuevo = lista.Find(x => x.Id == id);
+
+                if (nuevo == null)
+                {
+                    return Request.CreateResponse(HttpStatusCode.NotFound, "El articulo no existe.");
+                }
+
+                string camposVacios = "";
+                if (string.IsNullOrWhiteSpace(articulo.Codigo))
+                    camposVacios += "| Codigo: No puede estar vacio. |";
+
+                if (string.IsNullOrWhiteSpace(articulo.Nombre))
+                    camposVacios += "| Nombre: No puede estar vacio. |";
+
+                if (string.IsNullOrWhiteSpace(articulo.Descripcion))
+                    camposVacios += "| Descripcion: No puede estar vacio. |";
+
+                Marca marca = marcaNegocio.Listar().Find(x => x.Id == articulo.Marca);
+                Categoria categoria = categoriaNegocio.Listar().Find(x => x.Id == articulo.Categoria);
+
+                /*if (marca == null && categoria == null)
                 {
                     return Request.CreateResponse(HttpStatusCode.BadRequest, "Marca y Categoría inexistentes.");
                 }
@@ -153,24 +219,49 @@ namespace Api_Web.Models
                 {
                     return Request.CreateResponse(HttpStatusCode.BadRequest, "Categoría inexistente.");
                 }
+
+                if (articulo.Precio <= 0)
+                {
+                    return Request.CreateResponse(HttpStatusCode.BadRequest, "Precio invalido: debe ser un valor mayot a 0.");
+                }*/
+
+                if (marca == null)
+                {
+                    camposVacios += "| Marca: Marca inexistente. |";
+                }
+                if (categoria == null)
+                {
+                    camposVacios += "| Categoria: Categoria inexistente. |";
+                }
+
+                if (articulo.Precio <= 0)
+                {
+                    camposVacios += "| Precio invalido: debe ser un valor mayor a 0. |";
+                }
+
+                if (camposVacios.Length > 0)
+                {
+                    return Request.CreateResponse(HttpStatusCode.BadRequest, camposVacios);
+                }
+
+                nuevo.Codigo = articulo.Codigo;
+                nuevo.Nombre = articulo.Nombre;
+                nuevo.Descripcion = articulo.Descripcion;
+                nuevo.Marca = new Marca { Id = articulo.Marca };
+                nuevo.Categoria = new Categoria { Id = articulo.Categoria };
+                nuevo.Precio = articulo.Precio;
+
+                negocio.modificarArticulo(nuevo);
+
+                return Request.CreateResponse(HttpStatusCode.OK, "El articulo fue modificado correctamente.");
             }
-            else
+            catch (Exception)
             {
-                return Request.CreateResponse(HttpStatusCode.BadRequest, "No se recibieron las modificaciones a realizar.");
+                return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, "Ocurrio un error al modificar el articulo.");
             }
-
-            nuevo.Codigo = articulo.Codigo;
-            nuevo.Nombre = articulo.Nombre;
-            nuevo.Descripcion = articulo.Descripcion;
-            nuevo.Marca = new Marca { Id = articulo.Marca };
-            nuevo.Categoria = new Categoria { Id = articulo.Categoria };
-            nuevo.Precio = articulo.Precio;
-            nuevo.Id = id;
-
-            negocio.modificarArticulo(nuevo);
-
-            return Request.CreateResponse(HttpStatusCode.OK, "El artículo modificado correctamente");
         }
+
+
 
         // DELETE: api/Articulo/5
         public HttpResponseMessage Delete(int id)

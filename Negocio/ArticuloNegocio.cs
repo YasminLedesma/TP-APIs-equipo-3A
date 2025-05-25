@@ -137,15 +137,15 @@ namespace Negocio
 
                 datos.ejecutarAccion();
               
-                if (!string.IsNullOrEmpty(art.UrlImagen.ImagenUrl))
-                {
-                    datos = new AccesoDatos(); // Nueva instancia o reabrir conexión
-                    datos.setearConsulta("update IMAGENES set ImagenUrl = @UrlImagen  where IdArticulo = @IdArticulo;");
-                    datos.setearParametro("@IdArticulo", art.Id);
-                    datos.setearParametro("@UrlImagen", art.UrlImagen.ImagenUrl);
-                    datos.ejecutarAccion();
+                //if (!string.IsNullOrEmpty(art.UrlImagen.ImagenUrl))
+                //{
+                //    datos = new AccesoDatos(); // Nueva instancia o reabrir conexión
+                //    datos.setearConsulta("update IMAGENES set ImagenUrl = @UrlImagen  where IdArticulo = @IdArticulo;");
+                //    datos.setearParametro("@IdArticulo", art.Id);
+                //    datos.setearParametro("@UrlImagen", art.UrlImagen.ImagenUrl);
+                //    datos.ejecutarAccion();
                     
-                }
+                //}
 
 
             }
